@@ -132,13 +132,17 @@ def select_high_r_squared(data, r_squared_threshold):
 
 def combine_filter_pairs(regressions_df):
     high_alpha_pairs = select_high_alpha(
-        regressions_df, regressions_df['alpha'].mean())
+        regressions_df,
+        regressions_df['alpha'].mean() + regressions_df['alpha'].std())
     high_treynor_pairs = select_high_treynor(
-        regressions_df, regressions_df['Treynor Ratio'].mean())
+        regressions_df,
+        regressions_df['Treynor Ratio'].mean() + regressions_df['Treynor Ratio'].std())
     high_info_ratio_pairs = select_high_info_ratio(
-        regressions_df, regressions_df['Info Ratio'].mean())
+        regressions_df,
+        regressions_df['Info Ratio'].mean() + regressions_df['Info Ratio'].std())
     high_r_squared_pairs = select_high_r_squared(
-        regressions_df, regressions_df['r-squared'].mean())
+        regressions_df,
+        regressions_df['r-squared'].mean() + regressions_df['r-squared'].std())
 
     all_pairs = []
     for pair in high_alpha_pairs + high_treynor_pairs + high_info_ratio_pairs + high_r_squared_pairs:
