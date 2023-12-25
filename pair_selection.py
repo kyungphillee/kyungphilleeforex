@@ -21,28 +21,6 @@ def get_currency_pairs():
     ]
 
 
-def pair_regression_analysis(df):
-    regressions = {}
-    # Generate all unique pair combinations for regression
-    currency_pairs = df.columns  # Assuming these are your currency pair tickers
-    for i, pair1 in enumerate(currency_pairs):
-        for pair2 in currency_pairs[i + 1:]:  # Avoid self-pairing and repeats
-            # get the adj close values for each currency pair
-            pair1_values = df[pair1]
-            pair2_values = df[pair2]
-
-            # run ols
-            regression = get_ols_metrics(pair1_values, pair2_values)
-
-            # add the regression to the dictionary with correct tuple key
-            regressions[(pair1, pair2)] = regression
-
-    regressions_df = pd.concat(regressions).reset_index()
-    regressions_df = regressions_df.rename(
-        columns={'level_0': 'Currency Pair 1', 'level_1': 'Currency Pair 2'})
-    return regressions_df.iloc[:, [0, 1, 3, 5, 6, 7]]
-
-
 def get_ols_metrics(regressors, targets, annualization=1, ignorenan=True):
     # ensure regressors and targets are pandas dataframes, as expected
     if not isinstance(regressors, pd.DataFrame):
@@ -70,7 +48,7 @@ def get_ols_metrics(regressors, targets, annualization=1, ignorenan=True):
 
         model = LinearRegression().fit(X, y)
         reg.loc[col, 'alpha'] = model.intercept_ * annualization
-        reg.loc[col, regressors.columns] = model.coef_
+        reg.loc[col, 'beta'] = model.coef_[0]
         reg.loc[col, 'r-squared'] = model.score(X, y)
 
         # sklearn does not return the residuals, so we need to build them
@@ -93,8 +71,50 @@ def get_ols_metrics(regressors, targets, annualization=1, ignorenan=True):
     return reg
 
 
+def pair_regression_analysis(df):
+    corrmat = df.corr()
+    # make diagonal values 0
+    corrmat[corrmat == 1] = None
+
+    # sort correlations by highest to lowest
+    corrmat = corrmat.unstack()
+    corrmat = corrmat.sort_values(ascending=False)
+    corrmat = corrmat.dropna()
+    # Create a MultiIndex from the keys of the dictionary
+    multi_index = pd.MultiIndex.from_tuples(corrmat.keys())
+
+    # Create the Series
+    corrmat = pd.Series(corrmat, index=multi_index)
+
+    # Now, to get a list of tuples from the Series' MultiIndex
+    currency_pair_tuples = list(corrmat.index)
+
+    # take only the odd index tuples
+    currency_pair_tuples = currency_pair_tuples[::2]
+    regressions = {}
+    # Generate all unique pair combinations for regression
+    for pair in currency_pair_tuples:
+        # get the currency pair names
+        pair1 = pair[0]
+        pair2 = pair[1]
+
+        # get the adj close values for each currency pair
+        pair1_values = df[pair1]
+        pair2_values = df[pair2]
+
+        # let's run ols
+        regression = get_ols_metrics(pair1_values, pair2_values)
+
+        # add the regression to the dictionary
+        regressions[pair] = regression
+
+    regressions_df = pd.concat(regressions).reset_index()
+    regressions_df = regressions_df.rename(
+        columns={'level_0': 'Currency Pair 1', 'level_1': 'Currency Pair 2'})
+    return regressions_df.iloc[:, [0, 1, 3, 4, 5, 6, 7]]
+
+
 def select_high_alpha(data, alpha_threshold):
-    """Select currency pairs with alpha greater than the specified threshold."""
     filtered_data = data[data['alpha'] > alpha_threshold]
     high_alpha = []
     for _, row in filtered_data.iterrows():
@@ -103,7 +123,6 @@ def select_high_alpha(data, alpha_threshold):
 
 
 def select_high_treynor(data, treynor_threshold):
-    """Select currency pairs with a Treynor Ratio greater than the specified threshold."""
     filtered_data = data[data['Treynor Ratio'] > treynor_threshold]
     high_treynor = []
     for _, row in filtered_data.iterrows():
@@ -112,7 +131,6 @@ def select_high_treynor(data, treynor_threshold):
 
 
 def select_high_info_ratio(data, info_threshold):
-    """Select currency pairs with an Information Ratio greater than the specified threshold."""
     filtered_data = data[data['Info Ratio'] > info_threshold]
     high_info_ratio = []
     for _, row in filtered_data.iterrows():
@@ -122,7 +140,6 @@ def select_high_info_ratio(data, info_threshold):
 
 
 def select_high_r_squared(data, r_squared_threshold):
-    """Select currency pairs with an r-squared value greater than the specified threshold."""
     filtered_data = data[data['r-squared'] > r_squared_threshold]
     high_r_squared = []
     for _, row in filtered_data.iterrows():
@@ -173,7 +190,7 @@ def main():
     regressions_df = pair_regression_analysis(df)
     common_pairs = combine_filter_pairs(regressions_df)
 
-    print("Common Pairs:", common_pairs)
+    return common_pairs
 
 
 if __name__ == "__main__":
