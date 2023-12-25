@@ -116,6 +116,53 @@ def backtest_pairs_trading_strategy(common_pairs, df, lookback=1000, entry_thres
     return results
 
 
+def maximumDrawdown(data):
+    # Convert data to cumulative returns
+    cum_returns = (1 + data).cumprod()
+    rolling_max = cum_returns.cummax()
+    drawdown = (cum_returns - rolling_max) / rolling_max
+    max_drawdown = drawdown.min()
+    end_date = drawdown.idxmin()
+
+    # Create a summary DataFrame
+    summary = pd.DataFrame({
+        'Max Drawdown': max_drawdown,
+        'Trough Date': end_date,
+        'Peak Date': rolling_max.idxmax(),
+        'Recovery Date': drawdown[drawdown >= 0].idxmin()
+    })
+
+    summary['Duration (to Recover)'] = summary['Recovery Date'] - \
+        summary['Peak Date']
+
+    return summary
+
+
+def tailMetrics(data, quantile=0.01, relative=False):
+    metrics = pd.DataFrame(index=data.columns)
+    metrics['Skewness'] = data.skew()
+    metrics['Kurtosis'] = data.kurtosis()
+
+    # Calculate VaR and CVaR
+    VaR = data.quantile(quantile)
+    CVaR = data[data <= VaR].mean()
+
+    if relative:
+        mean = data.mean()
+        std = data.std()
+        VaR = (VaR - mean) / std
+        CVaR = (CVaR - mean) / std
+
+    metrics[f'VaR ({quantile})'] = VaR
+    metrics[f'CVaR ({quantile})'] = CVaR
+
+    # Maximum Drawdown statistics
+    mdd_stats = maximumDrawdown(data)
+    metrics = metrics.join(mdd_stats)
+
+    return metrics
+
+
 def main():
     currency_pairs = get_currency_pairs()
     start_date = (datetime.now() - timedelta(days=5*365)).strftime('%Y-%m-%d')
@@ -124,7 +171,17 @@ def main():
     df = fetch_currency_data(currency_pairs, start_date, end_date)
     regressions_df = pair_regression_analysis(df)
     common_pairs = combine_filter_pairs(regressions_df)
-    backtest_pairs_trading_strategy(common_pairs, df)
+    results = backtest_pairs_trading_strategy(common_pairs, df)
+
+    # Calculate maximum drawdown and tail metrics
+    pnl_data = results['pnl']
+    drawdowns = maximumDrawdown(pnl_data)
+    tail_metrics = tailMetrics(pnl_data)
+
+    print("Maximum Drawdowns:")
+    print(drawdowns)
+    print("\nTail Metrics:")
+    print(tail_metrics)
 
 
 if __name__ == "__main__":
