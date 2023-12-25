@@ -23,8 +23,8 @@ Once the pairs are selected, this module implements a pairs trading strategy bac
 - **zscore**: Calculates the Z-score of a series, typically used for normalization.
 - **exit_logic**: Determines when to exit a trade based on various criteria.
 - **backtest_pairs_trading_strategy**: Backtests the pairs trading strategy using historical data.
-- **Maximum Drawdown Calculation**:Assesses the largest peak-to-trough decline in the strategy's value, providing insight into potential losses.
-- **Tail Metrics Analysis**: Includes skewness, kurtosis, Value at Risk (VaR), and Conditional Value at Risk (CVaR) calculations to understand the distribution and risk of extreme strategy returns.
+- **maximumDrawdown**:Assesses the largest peak-to-trough decline in the strategy's value, providing insight into potential losses.
+- **tailMetrics**: Includes skewness, kurtosis, Value at Risk (VaR), and Conditional Value at Risk (CVaR) calculations to understand the distribution and risk of extreme strategy returns.
 - **main**: Runs the whole trading strategy from data fetching to backtesting.
 
 ### Installation and Setup
